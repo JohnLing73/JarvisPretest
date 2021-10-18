@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./fontawesome-free-5.15.4-web/css/all.css" />
+    <title>Jarvis Pretest</title>
+    <link rel="stylesheet" href="./css/main.css" />
+  </head>
+  <script src="https://unpkg.com/vue@next"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"
+    integrity="sha512-Idr7xVNnMWCsgBQscTSCivBNWWH30oo/tzYORviOCrLKmBaRxRflm2miNhTFJNVmXvCtzgms5nlJF4az2hiGnA=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+  <body>
+    <div id="app">
+      <header>
+        <nav>
+          <div class="search-bar">
+            <input type="text" v-model.trim="inputTxt"/>
+            <span :style="inputStyle" class="search-icon">
+              <i class="fas fa-search"></i>
+            </span>
+            <span :style="inputStyle" class="cancel-search-icon"
+              @click="cancelSearch"
+            >
+              <i class="fas fa-times-circle"></i>
+            </span>
+          </div>
+        </nav>
+      </header>
+      <div class="wrapper">
+        <div class="banner-contianer" ref="container">
+          <div class="each-banner" v-for="fig in bannerSrc">
+            <img :src="fig" alt="" />
+          </div>
+        </div>
+        <i
+          class="fas fa-chevron-circle-right carousel-btn next-btn"
+          @click="next"
+        ></i>
+        <i
+          class="fas fa-chevron-circle-left carousel-btn prev-btn"
+          @click="prev"
+        ></i>
+      </div>
+      <div class="count-down">
+        <p>
+          倒數:
+          <span>{{countDownHour}} hr:</span>
+          <span>{{countDownMin}} min:</span>
+          <span>{{countDownSec}} sec</span>
+        </p>
+      </div>
+      <main>
+        <div class="select-part">
+          <ul class="each-select">
+            <template v-for="eachFig in selectResult">
+              <li :title="eachFig.title">
+                {{ eachFig.title }}
+              </li>
+            </template>
+          </ul>
+        </div>
+        <div class="info">
+          <div class="products-container" v-for="eachFig in selectResult">
+            <img :src="eachFig.thumbnailUrl" :alt="eachFig.title" :title="eachFig.title" :id="eachFig.id"
+              @click="clickedPop(eachFig.id)"
+            />
+          </div>
+          <teleport to="body">
+            <div v-if="popOut" class="backdrop" @click="closedPop"></div>
+            <transition name="modal">
+              <img class="big-img" 
+              :title="popInfo.title" :src="popInfo.url" :alt="popInfo.title" :id="popInfo.id"
+              v-if="popOut" 
+              />
+            </transition>
+          </teleport>
+        </div>
+      </main>
+      <a href="#app" id="go-top">GoTop</a>
+    </div>
+  </body>
+  <script>
+    var timerId;
+    const vm = Vue.createApp({
+      data() {
+        return {
+          info: [],
+          bannerIng: 1,
+          countDownHour: 23,
+          countDownMin: 59,
+          countDownSec: 59,
+          popOut: false,
+          selectedProduct: 0,
+          inputTxt: ''
+        };
+      },
+      computed: {
+        inputStyle() {
+          return {
+            color: "gray",
+            fontSize: "2.5rem",
+          };
+        },
+        popInfo() {
+          return this.info.filter(each => each.id === this.selectedProduct)[0];
+        },
+        btnStyle() {
+          return {
+            fontSize: "2rem",
+          };
+        },
+        bannerSrc() {
+          let srcArr = [];
+          for (let i = 1; i < 11; i++) {
+            let src = `./img/fig${i}.jpg`;
+            srcArr.push(src);
+          }
+          return srcArr;
+        },
+        selectResult() {
+          const arr = this.info.filter( eachFig => eachFig.title.indexOf(this.inputTxt) > -1);
+          return arr;
+        },
+      },
+      methods: {
+        countDown() {
+          let daySecs = 86400; //一天的秒數
+          timerId = setInterval(() => {
+            daySecs -= 1;
+            if (daySecs < 0) {
+              clearInterval(timerId);
+              return;
+            }
+            this.countDownHour = Math.floor(daySecs / (60 * 60));
+            this.countDownMin = Math.floor(
+              (daySecs - this.countDownHour * 3600) / 60
+            );
+            this.countDownSec =
+              daySecs - this.countDownHour * 3600 - this.countDownMin * 60;
+          }, 1000);
+        },
+        cancelSearch() {
+          this.inputTxt = '';
+        },
+        async fetch() {
+          const response = await axios.get(
+            "http://jsonplaceholder.typicode.com/photos"
+          );
+          for (let i = 0; i < 20; i++) {
+            this.info.push(response.data[i]);
+          }
+          //sort the result
+          this.info.sort( (a,b) => {
+            let titleA = a.title.toUpperCase();
+            let titleB = b.title.toUpperCase();
+            if(titleA < titleB) {
+              return -1;
+            }
+            if(titleA > titleB) {
+              return 1;
+            }
+            return 0;
+          })
+        },
+        next() {
+          if (this.bannerIng > 9) {
+            this.bannerIng = 0;
+          }
+          const movingBanner = -this.bannerIng * 1200;
+          this.$refs.container.style.transform = `translateX(${movingBanner}px)`;
+          this.bannerIng++;
+        },
+        prev() {
+          if (this.bannerIng === 1) {
+            this.bannerIng = 10;
+            this.$refs.container.style.transform = `translateX(${
+              -(10 - 1) * 1200
+            }px)`;
+          } else {
+            this.bannerIng--;
+            const movingBanner = -this.bannerIng * 1200 + 1200;
+            this.$refs.container.style.transform = `translateX(${movingBanner}px)`;
+          }
+        },
+        clickedPop(id) {
+          this.selectedProduct = id;
+          this.popOut = true;
+        },
+        closedPop() {
+          this.popOut = false;
+        },
+        filterCondition(fig) {
+          if(this.inputTxt.toUpperCase().indexOf(fig.title) != -1) {
+            return true;
+          }
+          return false;
+        }
+      },
+      created() {
+        this.fetch();
+        this.countDown();
+      },
+    });
+    vm.mount("#app");
+  </script>
+</html>
